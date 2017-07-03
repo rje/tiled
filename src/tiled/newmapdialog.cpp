@@ -24,6 +24,9 @@
 #include "isometricrenderer.h"
 #include "hexagonalrenderer.h"
 #include "map.h"
+#include "grouplayer.h"
+#include "tilelayer.h"
+#include "objectgroup.h"
 #include "mapdocument.h"
 #include "orthogonalrenderer.h"
 #include "preferences.h"
@@ -124,6 +127,29 @@ NewMapDialog::~NewMapDialog()
     delete mUi;
 }
 
+void NewMapDialog::addMMDefaults(Map *map)
+{
+    map->setProperty(QLatin1String("type"), QLatin1String("combat"));
+    auto baseGroup = new GroupLayer(QLatin1String("base"), 0, 0);
+    baseGroup->addLayer(new TileLayer(QLatin1String("floor"), 0, 0, map->width(), map->height()));
+    baseGroup->addLayer(new TileLayer(QLatin1String("shadow"), 0, 0, map->width(), map->height()));
+    baseGroup->addLayer(new TileLayer(QLatin1String("walls"), 0, 0, map->width(), map->height()));
+    auto ceiling = new TileLayer(QLatin1String("ceiling"), 0, 0, map->width(), map->height());
+    ceiling->setOffset(QPointF(0, -16));
+    baseGroup->addLayer(ceiling);
+    baseGroup->addLayer(new TileLayer(QLatin1String("collision"), 0, 0, map->width(), map->height()));
+    map->addLayer(baseGroup);
+    auto doorGroup = new GroupLayer(QLatin1String("door"), 0, 0);
+    doorGroup->addLayer(new TileLayer(QLatin1String("floor"), 0, 0, map->width(), map->height()));
+    doorGroup->addLayer(new TileLayer(QLatin1String("shadow"), 0, 0, map->width(), map->height()));
+    doorGroup->addLayer(new TileLayer(QLatin1String("walls"), 0, 0, map->width(), map->height()));
+    ceiling = new TileLayer(QLatin1String("ceiling"), 0, 0, map->width(), map->height());
+    ceiling->setOffset(QPointF(0, -16));
+    doorGroup->addLayer(ceiling);
+    doorGroup->addLayer(new TileLayer(QLatin1String("collision"), 0, 0, map->width(), map->height()));
+    map->addLayer(doorGroup);
+}
+
 MapDocument *NewMapDialog::createMap()
 {
     if (exec() != QDialog::Accepted)
@@ -145,20 +171,27 @@ MapDocument *NewMapDialog::createMap()
     map->setLayerDataFormat(layerFormat);
     map->setRenderOrder(renderOrder);
 
-    const size_t gigabyte = 1073741824;
-    const size_t memory = size_t(mapWidth) * size_t(mapHeight) * sizeof(Cell);
-
-    // Add a tile layer to new maps of reasonable size
-    if (memory < gigabyte) {
-        map->addLayer(new TileLayer(tr("Tile Layer 1"), 0, 0,
-                                    mapWidth, mapHeight));
-    } else {
-        const double gigabytes = (double) memory / gigabyte;
-        QMessageBox::warning(this, tr("Memory Usage Warning"),
-                             tr("Tile layers for this map will consume %L1 GB "
-                                "of memory each. Not creating one by default.")
-                             .arg(gigabytes, 0, 'f', 2));
+    const bool createMMDefaults = mUi->mmDefaultLayers->checkState() == Qt::CheckState::Checked;
+    if(createMMDefaults) {
+        addMMDefaults(map);
     }
+    else {
+        const size_t gigabyte = 1073741824;
+        const size_t memory = size_t(mapWidth) * size_t(mapHeight) * sizeof(Cell);
+
+        // Add a tile layer to new maps of reasonable size
+        if (memory < gigabyte) {
+            map->addLayer(new TileLayer(tr("Tile Layer 1"), 0, 0,
+                                        mapWidth, mapHeight));
+        } else {
+            const double gigabytes = (double) memory / gigabyte;
+            QMessageBox::warning(this, tr("Memory Usage Warning"),
+                                 tr("Tile layers for this map will consume %L1 GB "
+                                    "of memory each. Not creating one by default.")
+                                 .arg(gigabytes, 0, 'f', 2));
+        }
+    }
+
 
     // Store settings for next time
     Preferences *prefs = Preferences::instance();

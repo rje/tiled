@@ -27,6 +27,9 @@ class NewMapDialog;
 }
 
 namespace Tiled {
+
+class Map;
+
 namespace Internal {
 
 class MapDocument;
@@ -47,6 +50,7 @@ public:
      * was cancelled.
      */
     MapDocument *createMap();
+    void addMMDefaults(Map *map);
 
 private slots:
     void refreshPixelSize();
